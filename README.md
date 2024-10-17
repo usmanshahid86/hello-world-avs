@@ -1,10 +1,12 @@
 # Hello World AVS
 
-Welcome to the Hello World AVS. This project shows you the simplest functionality you can expect from an AVS. It will give you a concrete understanding of the basic components.
+Welcome to the Hello World AVS. This project shows you the simplest functionality you can expect from an AVS. It will give you a concrete understanding of the basic components. For new users, please find [this video walkthrough](https://drive.google.com/file/d/1P6uA6kYWCbpeorTjADuoTlQ-q8uqwPZf/view?usp=sharing) of the hello world AVS repository.
+
+## Architecture
 
 ![hello-world-png](./assets/hello-world-diagramv2.png)
 
-## AVS User Flow
+### AVS User Flow
 
 1) AVS consumer requests a "Hello World" message to be generated and signed.
 2) HelloWorld contract receives the request and emits a NewTaskCreated event for the request.
@@ -47,7 +49,11 @@ Open a separate terminal window #2, execute the following commands
 
 ```sh
 # Setup .env file
-(cd contracts && cp .env.example .env && source .env)
+cp .env.example .env
+cp contracts/.env.example contracts/.env
+
+# Updates dependencies if necessary and builds the contracts 
+npm run build
 
 # Deploy the EigenLayer contracts
 npm run deploy:core
@@ -68,56 +74,45 @@ npm run start:operator
 Open a separate terminal window #3, execute the following commands
 
 ```sh
-cp .env.example .env
-source .env
-
 # Start the createNewTasks application 
 npm run start:traffic
 ```
+
+### Help and Support
+
+For help and support deploying and modifying this repo for your AVS, please:
+
+1. Open a ticket via the intercom link at [support.eigenlayer.xyz](https://support.eigenlayer.xyz).
+2. Include the necessary troubleshooting information for your environment:
+  * Local anvil testing:
+    * Redeploy your local test using `--revert-strings debug` flag via the following commands and retest: `npm run deploy:core-debug && npm run deploy:hello-world-debug`
+    * Include the full stacktrace from your error as a .txt file attachment.
+    * Create a minimal repo that demonstrates the behavior (fork or otherwise)
+    * Steps require to reproduce issue (compile and cause the error)
+  * Holesky testing:
+    * Ensure contracts are verified on Holesky. Eg `forge verify-contract --chain-id 17000 --num-of-optimizations 200 src/YourContract.sol:YourContract YOUR_CONTRACT_ADDRESS`
+    * Send us your transaction hash where your contract is failing. We will use Tenderly to debug (adjust gas limit) and/or cast to re-run the transaction (eg `cast call --trace "trace_replayTransaction(0xTransactionHash)"`).
+
+- Local anvil testing:
+  - Recompile the contracts with the `--revert-strings debug` flag. Deploy the contracts again and retest.
+  - Include the full stacktrace from your error as a .txt file attachment.
+  - Create a minimal repo that demonstrates the behavior (fork or otherwise).
+  - Steps require to reproduce issue (compile and cause the error).
+- Holesky testing:
+  - Ensure contracts are verified on Holesky. Eg `forge verify-contract --chain-id 17000 --num-of-optimizations 200 src/YourContract.sol:YourContract YOUR_CONTRACT_ADDRESS`
+  - Send us your transaction hash where your contract is failing. We will use Tenderly to debug (adjust gas limit) and/or cast to re-run the transaction (eg `cast call --trace "trace_replayTransaction(0xTransactionHash)"`).
+
+### Contact Us
+
+If you're planning to build an AVS and would like to speak with a member of the EigenLayer DevRel team to discuss your ideas or architecture, please fill out this form and we'll be in touch shortly: [EigenLayer AVS Intro Call](https://share.hsforms.com/1BksFoaPjSk2l3pQ5J4EVCAein6l)
+
 
 ### Disclaimers
 
 - This repo is meant currently intended for _local anvil development testing_. Holesky deployment support will be added shortly.
 - Users who wish to build an AVS for Production purposes will want to migrate from the `ECDSAServiceManagerBase` implementation in `HelloWorldServiceManager.sol` to a BLS style architecture using [RegistryCoordinator](https://github.com/Layr-Labs/eigenlayer-middleware/blob/dev/docs/RegistryCoordinator.md).
 
-  
-
 # Appendix (Future Capabilities In Progress)
-
-## Deployment on Tenderly Virtual Testnet
-
-Follow the [Tenderly Virtual Testnet Setup Instructions](https://docs.tenderly.co/virtual-testnets/quickstart) to create a new virtual testnet.
-
-Run the following commands:
-
-```sh
-
-# todo: add instructions to create a wallet for testnet account and set private key in .env holesky vars
-
-# Set env vars
-cd contracts
-source ../.env
-
-# Fund account using the tenderly rpc
-curl $TENDERLY_RPC_ADMIN \
--X POST \
--H "Content-Type: application/json" \
--d '{
-    "jsonrpc": "2.0",
-    "method": "tenderly_setBalance",
-    "params": [
-      [
-        "'"${PUBLIC_KEY}"'"
-        ],
-      "0xDE0B6B3A7640000"
-      ],
-    "id": "1234"
-}'
-
-# Deploy AVS contracts to Tenderly Holesky using Foundry
-forge script script/HelloWorldDeployerHolesky.s.sol:HelloWorldDeployerHolesky \
-    --rpc-url $TENDERLY_RPC_ADMIN --private-key $TENDERLY_PRIVATE_KEY --broadcast -vvv debug
-```
 
 ## Adding a New Strategy
 
@@ -129,8 +124,6 @@ The architecture can be further enhanced via:
 - the operators might need to coordinate with each other
 - the type of signature is different based on the constraints of the service
 - the type and amount of security used to secure the AVS
-
-
 
 ## Rust Operator instructions
 

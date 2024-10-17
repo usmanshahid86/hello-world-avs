@@ -1,14 +1,16 @@
-name: test
+name: Daily Build And Test Dev
 
-on: workflow_dispatch
-
-env:
-  FOUNDRY_PROFILE: ci
-
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 jobs:
   check:
     strategy:
       fail-fast: true
+    defaults:
+      run:
+        working-directory: ./contracts
 
     name: Foundry project
     runs-on: ubuntu-latest
@@ -21,6 +23,12 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
+
+      - name: Target Operator Set Release 
+        run: |
+          cd lib/eigenlayer-middleware
+          git checkout feat/operate-set-release-branch
+        id: checkout-dependency
 
       - name: Run Forge build
         run: |

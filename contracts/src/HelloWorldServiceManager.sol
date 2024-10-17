@@ -7,7 +7,9 @@ import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStak
 import {IServiceManager} from "@eigenlayer-middleware/src/interfaces/IServiceManager.sol";
 import {ECDSAUpgradeable} from
     "@openzeppelin-upgrades/contracts/utils/cryptography/ECDSAUpgradeable.sol";
+import {IERC1271Upgradeable} from "@openzeppelin-upgrades/contracts/interfaces/IERC1271Upgradeable.sol";
 import {IHelloWorldServiceManager} from "./IHelloWorldServiceManager.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
  * @title Primary entrypoint for procuring services from HelloWorld.
@@ -16,8 +18,6 @@ import {IHelloWorldServiceManager} from "./IHelloWorldServiceManager.sol";
 contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldServiceManager {
     using ECDSAUpgradeable for bytes32;
 
-    /* STORAGE */
-    // The latest task index
     uint32 public latestTaskNum;
 
     // mapping of task indices to all tasks hashes
@@ -29,7 +29,6 @@ contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldService
     // mapping of task indices to hash of abi.encode(taskResponse, taskResponseMetadata)
     mapping(address => mapping(uint32 => bytes)) public allTaskResponses;
 
-    /* MODIFIERS */
     modifier onlyOperator() {
         require(
             ECDSAStakeRegistry(stakeRegistry).operatorRegistered(msg.sender),
@@ -55,7 +54,7 @@ contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldService
     // NOTE: this function creates new task, assigns it a taskId
     function createNewTask(
         string memory name
-    ) external {
+    ) external returns (Task memory) {
         // create a new task struct
         Task memory newTask;
         newTask.name = name;
@@ -65,24 +64,20 @@ contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldService
         allTaskHashes[latestTaskNum] = keccak256(abi.encode(newTask));
         emit NewTaskCreated(latestTaskNum, newTask);
         latestTaskNum = latestTaskNum + 1;
+
+        return newTask;
     }
 
-    // NOTE: this function responds to existing tasks.
     function respondToTask(
         Task calldata task,
         uint32 referenceTaskIndex,
-        bytes calldata signature
-    ) external onlyOperator {
-        require(
-            operatorHasMinimumWeight(msg.sender),
-            "Operator does not have match the weight requirements"
-        );
+        bytes memory signature
+    ) external {
         // check that the task is valid, hasn't been responsed yet, and is being responded in time
         require(
             keccak256(abi.encode(task)) == allTaskHashes[referenceTaskIndex],
             "supplied task does not match the one recorded in the contract"
         );
-        // some logical checks
         require(
             allTaskResponses[msg.sender][referenceTaskIndex].length == 0,
             "Operator has already responded to the task"
@@ -91,25 +86,15 @@ contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldService
         // The message that was signed
         bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", task.name));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-
-        // Recover the signer address from the signature
-        address signer = ethSignedMessageHash.recover(signature);
-
-        require(signer == msg.sender, "Message signer is not operator");
+        bytes4 magicValue = IERC1271Upgradeable.isValidSignature.selector;
+        if (!(magicValue == ECDSAStakeRegistry(stakeRegistry).isValidSignature(ethSignedMessageHash,signature))){
+            revert();
+        }
 
         // updating the storage with task responses
         allTaskResponses[msg.sender][referenceTaskIndex] = signature;
 
         // emitting event
         emit TaskResponded(referenceTaskIndex, task, msg.sender);
-    }
-
-    // HELPER
-
-    function operatorHasMinimumWeight(
-        address operator
-    ) public view returns (bool) {
-        return ECDSAStakeRegistry(stakeRegistry).getOperatorWeight(operator)
-            >= ECDSAStakeRegistry(stakeRegistry).minimumWeight();
     }
 }
